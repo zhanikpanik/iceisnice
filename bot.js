@@ -124,8 +124,10 @@ orderScene.hears('📅 На сегодня', async (ctx) => {
     const userId = ctx.from.id;
     const amount = ctx.scene.state.amount;
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinutes = now.getMinutes();
+    // Convert to UTC+6 (Almaty)
+    const almatyTime = new Date(now.getTime() + (6 * 60 * 60 * 1000));
+    const currentHour = almatyTime.getHours();
+    const currentMinutes = almatyTime.getMinutes();
 
     // Check if current time is before 17:00
     if (currentHour >= 17) {
