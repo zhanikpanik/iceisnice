@@ -293,59 +293,23 @@ bot.hears('❌ Отменить заказ', async (ctx) => {
         return;
     }
 
-    const orderList = activeOrders.map(order => 
-        `${order.index}. ${order.amount} кг - ${order.deliveryDate}`
-    ).join('\n');
+    const keyboard = Markup.keyboard(
+        activeOrders.map(order => [`Отменить заказ №${order.index}: ${order.amount} кг`])
+    ).resize();
 
-    await ctx.reply(
-        'Выберите заказ для отмены:\n\n' +
-        orderList,
-        Markup.keyboard([
-            activeOrders.map(order => `${order.index}`),
-            ['🔙 Назад']
-        ]).resize()
-    );
+    await ctx.reply('Выберите заказ для отмены:', keyboard);
 });
 
-// Handle order cancellation
-bot.hears(/^\d+$/, async (ctx) => {
+// Handle order cancellation selection
+bot.hears(/^Отменить заказ №(\d+): (\d+) кг$/, async (ctx) => {
     const userId = ctx.from.id;
-    const orderIndex = parseInt(ctx.message.text);
-    const activeOrders = await getActiveOrders(userId);
-
-    if (!activeOrders.some(order => order.index === orderIndex)) {
-        await ctx.reply('Неверный номер заказа. Пожалуйста, выберите существующий заказ.');
-        return;
-    }
-
+    const orderIndex = parseInt(ctx.match[1]);
+    
     const success = await cancelOrder(userId, orderIndex);
     if (success) {
-        // Get updated list of active orders
-        const updatedOrders = await getActiveOrders(userId);
-        
-        if (updatedOrders.length === 0) {
-            await ctx.reply(
-                'Заказ успешно отменен!\n\n' +
-                'У вас больше нет активных заказов.',
-                mainKeyboard
-            );
-        } else {
-            const orderList = updatedOrders.map(order => 
-                `${order.index}. ${order.amount} кг - ${order.deliveryDate}`
-            ).join('\n');
-
-            await ctx.reply(
-                'Заказ успешно отменен!\n\n' +
-                'Ваши активные заказы:\n' +
-                orderList,
-                Markup.keyboard([
-                    updatedOrders.map(order => `${order.index}`),
-                    ['🔙 Назад']
-                ]).resize()
-            );
-        }
+        await ctx.reply('Заказ успешно отменен.', mainKeyboard);
     } else {
-        await ctx.reply('Произошла ошибка при отмене заказа. Пожалуйста, попробуйте позже.');
+        await ctx.reply('Произошла ошибка при отмене заказа. Пожалуйста, попробуйте позже.', mainKeyboard);
     }
 });
 
