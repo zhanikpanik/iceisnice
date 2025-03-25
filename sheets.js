@@ -48,9 +48,59 @@ async function initializeSheet() {
     }
 }
 
+// Create a new sheet for a specific date
+async function createDailySheet(date) {
+    try {
+        const sheetTitle = date.toISOString().split('T')[0];
+        
+        // Check if sheet already exists
+        const sheetsList = await sheets.spreadsheets.get({
+            spreadsheetId: SPREADSHEET_ID
+        });
+        
+        const sheetExists = sheetsList.data.sheets.some(sheet => sheet.properties.title === sheetTitle);
+        
+        if (!sheetExists) {
+            // Create new sheet
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: SPREADSHEET_ID,
+                resource: {
+                    requests: [{
+                        addSheet: {
+                            properties: {
+                                title: sheetTitle
+                            }
+                        }
+                    }]
+                }
+            });
+
+            // Add headers to new sheet
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${sheetTitle}!A1:G1`,
+                valueInputOption: 'RAW',
+                resource: {
+                    values: [['ID пользователя', 'Название заведения', 'Адрес', 'Количество (кг)', 'Дата доставки', 'Время заказа', 'Статус']]
+                }
+            });
+
+            console.log(`Created new sheet for ${sheetTitle}`);
+        }
+        
+        return sheetTitle;
+    } catch (error) {
+        console.error('Error creating daily sheet:', error);
+        throw error;
+    }
+}
+
 // Add a new order to the sheet
 async function addOrder(userId, venueName, address, amount, deliveryDate, timestamp) {
     try {
+        // Create or get sheet for the delivery date
+        const sheetTitle = await createDailySheet(new Date(deliveryDate));
+        
         const values = [[
             userId,
             venueName,
@@ -63,7 +113,7 @@ async function addOrder(userId, venueName, address, amount, deliveryDate, timest
 
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
-            range: 'A:G',
+            range: `${sheetTitle}!A:G`,
             valueInputOption: 'RAW',
             resource: { values }
         });
@@ -79,43 +129,51 @@ async function addOrder(userId, venueName, address, amount, deliveryDate, timest
 // Cancel an order by updating its status
 async function cancelOrder(userId, orderIndex) {
     try {
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: 'A:G'
+        // Get all sheets
+        const sheetsList = await sheets.spreadsheets.get({
+            spreadsheetId: SPREADSHEET_ID
         });
 
-        const rows = response.data.values;
-        let currentIndex = 0;
-        let targetRow = -1;
+        // Search through all sheets for the order
+        for (const sheet of sheetsList.data.sheets) {
+            const response = await sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${sheet.properties.title}!A:G`
+            });
 
-        // Find the order by userId and index
-        for (let i = 1; i < rows.length; i++) {
-            if (rows[i][0] === userId.toString()) {
-                currentIndex++;
-                if (currentIndex === orderIndex) {
-                    targetRow = i + 1; // +1 because sheets is 1-based
-                    break;
+            const rows = response.data.values;
+            let currentIndex = 0;
+            let targetRow = -1;
+
+            // Find the order by userId and index
+            for (let i = 1; i < rows.length; i++) {
+                if (rows[i][0] === userId.toString() && rows[i][6] === 'Активен') {
+                    currentIndex++;
+                    if (currentIndex === orderIndex) {
+                        targetRow = i + 1; // +1 because sheets is 1-based
+                        break;
+                    }
                 }
             }
-        }
 
-        if (targetRow === -1) {
-            console.error('Order not found');
-            return false;
-        }
+            if (targetRow !== -1) {
+                // Update the status to 'Отменен'
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `${sheet.properties.title}!G${targetRow}`,
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: [['Отменен']]
+                    }
+                });
 
-        // Update the status to 'Отменен'
-        await sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `G${targetRow}`,
-            valueInputOption: 'RAW',
-            resource: {
-                values: [['Отменен']]
+                console.log('Order cancelled successfully');
+                return true;
             }
-        });
+        }
 
-        console.log('Order cancelled successfully');
-        return true;
+        console.error('Order not found');
+        return false;
     } catch (error) {
         console.error('Error cancelling order:', error);
         return false;
@@ -134,16 +192,20 @@ async function getActiveOrders(userId) {
         const userOrders = [];
         let currentIndex = 0;
 
-        for (let i = 1; i < rows.length; i++) {
-            if (rows[i][0] === userId.toString() && rows[i][6] === 'Активен') {
-                currentIndex++;
-                userOrders.push({
-                    index: currentIndex,
-                    amount: parseInt(rows[i][3]),
-                    deliveryDate: rows[i][4]
-                });
-            }
-        }
+        // Filter active orders and sort by delivery date
+        const activeOrders = rows.slice(1) // Skip header row
+            .filter(row => row[0] === userId.toString() && row[6] === 'Активен')
+            .sort((a, b) => new Date(a[4]) - new Date(b[4])); // Sort by delivery date
+
+        // Add orders with new indices
+        activeOrders.forEach(order => {
+            currentIndex++;
+            userOrders.push({
+                index: currentIndex,
+                amount: parseInt(order[3]),
+                deliveryDate: order[4]
+            });
+        });
 
         return userOrders;
     } catch (error) {
