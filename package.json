@@ -1,0 +1,15 @@
+{
+  "name": "ice-order-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for ice orders",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.15.3",
+    "dotenv": "^16.4.1",
+    "googleapis": "^129.0.0",
+    "google-auth-library": "^9.0.0"
+  }
+}
