@@ -141,4 +141,4 @@ module.exports = {
     addOrder,
     cancelOrder,
     getActiveOrders
-}; 
+};
