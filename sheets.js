@@ -1,6 +1,22 @@
 const { google } = require('googleapis');
 const { JWT } = require('google-auth-library');
 
+// Check if required environment variables are set
+if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+    console.error('GOOGLE_SERVICE_ACCOUNT_EMAIL is not defined in environment variables');
+    process.exit(1);
+}
+
+if (!process.env.GOOGLE_PRIVATE_KEY) {
+    console.error('GOOGLE_PRIVATE_KEY is not defined in environment variables');
+    process.exit(1);
+}
+
+if (!process.env.SPREADSHEET_ID) {
+    console.error('SPREADSHEET_ID is not defined in environment variables');
+    process.exit(1);
+}
+
 // Create JWT client using environment variables
 const auth = new JWT({
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,

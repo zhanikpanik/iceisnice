@@ -40,8 +40,9 @@ const mainKeyboard = Markup.keyboard([
 ]).resize();
 
 const orderKeyboard = Markup.keyboard([
-    ['5 кг', '10 кг', '15 кг'],
-    ['20 кг', '25 кг', '30 кг'],
+    ['20 кг', '30 кг', '40 кг'],
+    ['50 кг', '60 кг', '70 кг'],
+    ['80 кг', '90 кг', '100 кг'],
     ['🔙 Назад']
 ]).resize();
 
@@ -122,7 +123,21 @@ orderScene.hears(/^\d+ кг$/, async (ctx) => {
 orderScene.hears('📅 На сегодня', async (ctx) => {
     const userId = ctx.from.id;
     const amount = ctx.scene.state.amount;
-    const deliveryDate = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+
+    // Check if current time is before 17:00
+    if (currentHour >= 17) {
+        await ctx.reply(
+            'К сожалению, заказы на сегодня принимаются только до 17:00.\n' +
+            'Пожалуйста, выберите другую дату доставки.',
+            orderKeyboard
+        );
+        return;
+    }
+
+    const deliveryDate = now.toISOString().split('T')[0];
 
     const success = await addOrder(
         userId,
@@ -130,7 +145,7 @@ orderScene.hears('📅 На сегодня', async (ctx) => {
         userData[userId].address,
         amount,
         deliveryDate,
-        new Date().toISOString()
+        now.toISOString()
     );
 
     if (success) {
@@ -139,7 +154,7 @@ orderScene.hears('📅 На сегодня', async (ctx) => {
             `Заведение: ${userData[userId].venueName}\n` +
             `Количество: ${amount} кг\n` +
             `Адрес: ${userData[userId].address}\n` +
-            `Дата доставки: ${new Date().toLocaleDateString()}`,
+            `Дата доставки: ${now.toLocaleDateString()}`,
             mainKeyboard
         );
     } else {
