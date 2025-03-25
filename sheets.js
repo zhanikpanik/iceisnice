@@ -1,16 +1,12 @@
 const { google } = require('googleapis');
 const { JWT } = require('google-auth-library');
-const fs = require('fs');
 
-// Load credentials from service account file
-const credentials = JSON.parse(fs.readFileSync('credentials.json'));
-
-// Create JWT client
+// Create JWT client using environment variables
 const auth = new JWT({
-    email: credentials.client_email,
-    key: credentials.private_key,
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    subject: credentials.client_email
+    subject: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
 });
 
 // Create Google Sheets API client
@@ -145,4 +141,4 @@ module.exports = {
     addOrder,
     cancelOrder,
     getActiveOrders
-}; 
+};
