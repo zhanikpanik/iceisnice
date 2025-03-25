@@ -1,15 +1,22 @@
 {
-  "name": "ice-order-bot",
+  "name": "iceisnice",
   "version": "1.0.0",
   "description": "Telegram bot for ice orders",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "dev": "nodemon bot.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
-    "telegraf": "^4.15.3",
-    "dotenv": "^16.4.1",
-    "googleapis": "^129.0.0",
-    "google-auth-library": "^9.0.0"
+    "dotenv": "^16.4.5",
+    "google-auth-library": "^9.0.0",
+    "googleapis": "^133.0.0",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }
