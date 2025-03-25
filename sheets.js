@@ -9,7 +9,8 @@ const credentials = JSON.parse(fs.readFileSync('credentials.json'));
 const auth = new JWT({
     email: credentials.client_email,
     key: credentials.private_key,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    subject: credentials.client_email
 });
 
 // Create Google Sheets API client
