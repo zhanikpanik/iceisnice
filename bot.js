@@ -36,7 +36,7 @@ function saveUserData() {
 // Create keyboards
 const mainKeyboard = Markup.keyboard([
     ['❄️ Заказать лёд ❄️'],
-    [Markup.button.callback('📍 Изменить адрес', 'change_address'), Markup.button.callback('❌ Отменить заказ', 'cancel_order')]
+    ['📍 Изменить адрес', '❌ Отменить заказ']
 ]).resize();
 
 const orderKeyboard = Markup.keyboard([
@@ -294,13 +294,13 @@ bot.hears('❄️ Заказать лёд ❄️', async (ctx) => {
     await ctx.scene.enter('order');
 });
 
-// Handle inline buttons
-bot.action('change_address', async (ctx) => {
+// Handle address change
+bot.hears('📍 Изменить адрес', async (ctx) => {
     await ctx.scene.enter('venue');
-    await ctx.answerCbQuery();
 });
 
-bot.action('cancel_order', async (ctx) => {
+// Handle cancel order
+bot.hears('❌ Отменить заказ', async (ctx) => {
     const userId = ctx.from.id;
     const activeOrders = await getActiveOrders(userId);
 
@@ -315,7 +315,6 @@ bot.action('cancel_order', async (ctx) => {
     ]).resize();
 
     await ctx.reply('Выберите заказ для отмены:', keyboard);
-    await ctx.answerCbQuery();
 });
 
 // Order command
