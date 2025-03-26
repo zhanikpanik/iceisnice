@@ -35,15 +35,14 @@ function saveUserData() {
 
 // Create keyboards
 const mainKeyboard = Markup.keyboard([
-    ['📝 Сделать заказ', '📍 Изменить адрес'],
-    ['❌ Отменить заказ']
+    ['❄️ Заказать лёд ❄️'],
+    [Markup.button.callback('📍 Изменить адрес', 'change_address'), Markup.button.callback('❌ Отменить заказ', 'cancel_order')]
 ]).resize();
 
 const orderKeyboard = Markup.keyboard([
-    ['20 кг', '30 кг', '40 кг'],
-    ['50 кг', '60 кг', '70 кг'],
-    ['80 кг', '90 кг', '100 кг'],
-    ['🔙 Назад']
+    ['10 кг', '20 кг', '30 кг', '40 кг', '50 кг'],
+    ['60 кг', '70 кг', '80 кг', '90 кг', '100 кг'],
+    ['Назад']
 ]).resize();
 
 const dateKeyboard = Markup.keyboard([
@@ -101,8 +100,24 @@ addressScene.on('text', async (ctx) => {
 
 // Scene for collecting order details
 const orderScene = new Scenes.BaseScene('order');
-orderScene.enter((ctx) => {
-    ctx.reply('Выберите количество льда (шаг 5 кг):', orderKeyboard);
+orderScene.enter(async (ctx) => {
+    const userData = userData[ctx.from.id];
+    if (!userData || !userData.venueName || !userData.address) {
+        await ctx.reply('Пожалуйста, сначала укажите название заведения и адрес.', {
+            reply_markup: mainKeyboard.reply_markup
+        });
+        return ctx.scene.leave();
+    }
+
+    await ctx.reply(
+        `Текущие данные:\n` +
+        `Заведение: ${userData.venueName}\n` +
+        `Адрес: ${userData.address}\n\n` +
+        `Выберите количество льда (шаг 10 кг):`,
+        {
+            reply_markup: orderKeyboard.reply_markup
+        }
+    );
 });
 
 orderScene.hears(/^\d+ кг$/, async (ctx) => {
@@ -275,16 +290,17 @@ bot.command('start', async (ctx) => {
 });
 
 // Handle main menu actions
-bot.hears('📝 Сделать заказ', async (ctx) => {
+bot.hears('❄️ Заказать лёд ❄️', async (ctx) => {
     await ctx.scene.enter('order');
 });
 
-bot.hears('📍 Изменить адрес', async (ctx) => {
+// Handle inline buttons
+bot.action('change_address', async (ctx) => {
     await ctx.scene.enter('venue');
+    await ctx.answerCbQuery();
 });
 
-// Handle cancel order command
-bot.hears('❌ Отменить заказ', async (ctx) => {
+bot.action('cancel_order', async (ctx) => {
     const userId = ctx.from.id;
     const activeOrders = await getActiveOrders(userId);
 
@@ -293,24 +309,13 @@ bot.hears('❌ Отменить заказ', async (ctx) => {
         return;
     }
 
-    const keyboard = Markup.keyboard(
-        activeOrders.map(order => [`Отменить заказ №${order.index}: ${order.amount} кг`])
-    ).resize();
+    const keyboard = Markup.keyboard([
+        ...activeOrders.map(order => [`Отменить заказ №${order.index}: ${order.amount} кг`]),
+        ['🔙 Назад']
+    ]).resize();
 
     await ctx.reply('Выберите заказ для отмены:', keyboard);
-});
-
-// Handle order cancellation selection
-bot.hears(/^Отменить заказ №(\d+): (\d+) кг$/, async (ctx) => {
-    const userId = ctx.from.id;
-    const orderIndex = parseInt(ctx.match[1]);
-    
-    const success = await cancelOrder(userId, orderIndex);
-    if (success) {
-        await ctx.reply('Заказ успешно отменен.', mainKeyboard);
-    } else {
-        await ctx.reply('Произошла ошибка при отмене заказа. Пожалуйста, попробуйте позже.', mainKeyboard);
-    }
+    await ctx.answerCbQuery();
 });
 
 // Order command

@@ -95,27 +95,92 @@ async function createDailySheet(date) {
     }
 }
 
+// Helper functions for data normalization
+function normalizeString(str) {
+    return str
+        .toLowerCase()
+        .replace(/[ё]/g, 'е')
+        .replace(/[^а-яёa-z0-9]/g, '')
+        .trim();
+}
+
+function normalizeAddress(addr) {
+    return addr
+        .toLowerCase()
+        .replace(/[ё]/g, 'е')
+        .replace(/[^а-яёa-z0-9]/g, '')
+        .replace(/\s+/g, '')
+        .trim();
+}
+
 // Add a new order to the sheet
 async function addOrder(userId, venueName, address, amount, deliveryDate, timestamp) {
     try {
-        // Create or get sheet for the delivery date
-        const sheetTitle = await createDailySheet(new Date(deliveryDate));
-        
-        const values = [[
+        // Get current orders to determine the next order number
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Заказы!A:N'
+        });
+
+        const rows = response.data.values || [];
+        const nextOrderNumber = rows.length; // Next row number (including header)
+
+        // Normalize venue name and address
+        const normalizedVenueName = normalizeString(venueName);
+        const normalizedAddress = normalizeAddress(address);
+
+        // Add to main sheet (for courier)
+        const mainValues = [[
+            nextOrderNumber, // Order number
+            venueName, // Original venue name for display
+            address, // Original address for display
+            amount,
+            new Date(timestamp).toLocaleTimeString(), // Format time for better readability
+            'Активен'
+        ]];
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `Заказы!A${nextOrderNumber + 1}:F${nextOrderNumber + 1}`,
+            valueInputOption: 'RAW',
+            resource: { values: mainValues }
+        });
+
+        // Add to archive sheet (for accounting)
+        const archiveValues = [[
+            new Date(timestamp).toLocaleDateString(), // Order date
+            deliveryDate,
+            venueName, // Original venue name
+            address, // Original address
+            amount,
+            'Активен'
+        ]];
+
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Архив!A:F',
+            valueInputOption: 'RAW',
+            resource: { values: archiveValues }
+        });
+
+        // Store full order data in hidden columns
+        const fullOrderData = [[
             userId,
-            venueName,
-            address,
+            venueName, // Original venue name
+            address, // Original address
+            normalizedVenueName, // Normalized venue name for matching
+            normalizedAddress, // Normalized address for matching
             amount,
             deliveryDate,
             timestamp,
             'Активен'
         ]];
 
-        await sheets.spreadsheets.values.append({
+        await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetTitle}!A:G`,
+            range: `Заказы!H${nextOrderNumber + 1}:P${nextOrderNumber + 1}`,
             valueInputOption: 'RAW',
-            resource: { values }
+            resource: { values: fullOrderData }
         });
 
         console.log('Order added successfully');
@@ -126,66 +191,12 @@ async function addOrder(userId, venueName, address, amount, deliveryDate, timest
     }
 }
 
-// Cancel an order by updating its status
-async function cancelOrder(userId, orderIndex) {
-    try {
-        // Get all sheets
-        const sheetsList = await sheets.spreadsheets.get({
-            spreadsheetId: SPREADSHEET_ID
-        });
-
-        // Search through all sheets for the order
-        for (const sheet of sheetsList.data.sheets) {
-            const response = await sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: `${sheet.properties.title}!A:G`
-            });
-
-            const rows = response.data.values;
-            let currentIndex = 0;
-            let targetRow = -1;
-
-            // Find the order by userId and index
-            for (let i = 1; i < rows.length; i++) {
-                if (rows[i][0] === userId.toString() && rows[i][6] === 'Активен') {
-                    currentIndex++;
-                    if (currentIndex === orderIndex) {
-                        targetRow = i + 1; // +1 because sheets is 1-based
-                        break;
-                    }
-                }
-            }
-
-            if (targetRow !== -1) {
-                // Update the status to 'Отменен'
-                await sheets.spreadsheets.values.update({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: `${sheet.properties.title}!G${targetRow}`,
-                    valueInputOption: 'RAW',
-                    resource: {
-                        values: [['Отменен']]
-                    }
-                });
-
-                console.log('Order cancelled successfully');
-                return true;
-            }
-        }
-
-        console.error('Order not found');
-        return false;
-    } catch (error) {
-        console.error('Error cancelling order:', error);
-        return false;
-    }
-}
-
 // Get active orders for a user
 async function getActiveOrders(userId) {
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: 'A:G'
+            range: 'Заказы!A:P'
         });
 
         const rows = response.data.values;
@@ -194,16 +205,16 @@ async function getActiveOrders(userId) {
 
         // Filter active orders and sort by delivery date
         const activeOrders = rows.slice(1) // Skip header row
-            .filter(row => row[0] === userId.toString() && row[6] === 'Активен')
-            .sort((a, b) => new Date(a[4]) - new Date(b[4])); // Sort by delivery date
+            .filter(row => row[7] === userId.toString() && row[8] === 'Активен')
+            .sort((a, b) => new Date(a[10]) - new Date(b[10])); // Sort by delivery date
 
         // Add orders with new indices
         activeOrders.forEach(order => {
             currentIndex++;
             userOrders.push({
                 index: currentIndex,
-                amount: parseInt(order[3]),
-                deliveryDate: order[4]
+                amount: parseInt(order[5]),
+                deliveryDate: order[10]
             });
         });
 
@@ -211,6 +222,77 @@ async function getActiveOrders(userId) {
     } catch (error) {
         console.error('Error getting active orders:', error);
         return [];
+    }
+}
+
+// Cancel an order by updating its status
+async function cancelOrder(userId, orderIndex) {
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Заказы!A:P'
+        });
+
+        const rows = response.data.values;
+        let currentIndex = 0;
+        let targetRow = -1;
+
+        // Find the order by userId and index
+        for (let i = 1; i < rows.length; i++) {
+            if (rows[i][7] === userId.toString() && rows[i][8] === 'Активен') {
+                currentIndex++;
+                if (currentIndex === orderIndex) {
+                    targetRow = i + 1; // +1 because sheets is 1-based
+                    break;
+                }
+            }
+        }
+
+        if (targetRow === -1) {
+            console.error('Order not found');
+            return false;
+        }
+
+        // Update status in main sheet
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `Заказы!F${targetRow}`,
+            valueInputOption: 'RAW',
+            resource: {
+                values: [['Отменен']]
+            }
+        });
+
+        // Update status in archive sheet
+        const orderData = rows[targetRow - 1];
+        const archiveResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Архив!A:F'
+        });
+
+        const archiveRows = archiveResponse.data.values;
+        for (let i = 1; i < archiveRows.length; i++) {
+            if (archiveRows[i][2] === orderData[1] && // venueName
+                archiveRows[i][3] === orderData[2] && // address
+                archiveRows[i][4] === orderData[5] && // amount
+                archiveRows[i][5] === 'Активен') {
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `Архив!F${i + 1}`,
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: [['Отменен']]
+                    }
+                });
+                break;
+            }
+        }
+
+        console.log('Order cancelled successfully');
+        return true;
+    } catch (error) {
+        console.error('Error cancelling order:', error);
+        return false;
     }
 }
 
