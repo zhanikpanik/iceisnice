@@ -289,8 +289,28 @@ bot.command('start', async (ctx) => {
     }
 });
 
+// Debug handler for all text messages
+bot.on('text', (ctx) => {
+    console.log('Received text message:', ctx.message.text);
+});
+
 // Handle main menu actions
 bot.hears('Заказать лёд', async (ctx) => {
+    console.log('Order button pressed');
+    const userId = ctx.from.id;
+    console.log('User ID:', userId);
+    console.log('User data:', userData[userId]);
+    
+    if (!userData[userId]?.venueName || !userData[userId]?.address) {
+        console.log('No venue data found, entering venue scene');
+        await ctx.reply('Пожалуйста, сначала укажите название заведения и адрес.', {
+            reply_markup: mainKeyboard.reply_markup
+        });
+        await ctx.scene.enter('venue');
+        return;
+    }
+    
+    console.log('Entering order scene');
     await ctx.scene.enter('order');
 });
 

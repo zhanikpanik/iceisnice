@@ -34,16 +34,79 @@ const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 // Initialize the sheet with headers if it's empty
 async function initializeSheet() {
     try {
-        const headers = [['ID пользователя', 'Название заведения', 'Адрес', 'Количество (кг)', 'Дата доставки', 'Время заказа', 'Статус']];
+        console.log('Starting sheet initialization...');
+        
+        // Initialize main sheet for current orders
+        const mainHeaders = [['№', 'Заведение', 'Адрес', 'Количество (кг)', 'Время заказа', 'Статус']];
+        console.log('Updating main sheet headers...');
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
-            range: 'A1:G1',
+            range: 'Заказы!A1:F1',
             valueInputOption: 'RAW',
-            resource: { values: headers }
+            resource: { values: mainHeaders }
         });
-        console.log('Sheet initialized successfully');
+
+        // Initialize archive sheet for accounting
+        const archiveHeaders = [['Дата заказа', 'Дата доставки', 'Заведение', 'Адрес', 'Количество (кг)', 'Статус']];
+        console.log('Updating archive sheet headers...');
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Архив!A1:F1',
+            valueInputOption: 'RAW',
+            resource: { values: archiveHeaders }
+        });
+
+        // Format headers
+        console.log('Formatting headers...');
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            resource: {
+                requests: [
+                    {
+                        repeatCell: {
+                            range: {
+                                sheetId: 0, // Main sheet
+                                startRowIndex: 0,
+                                endRowIndex: 1,
+                                startColumnIndex: 0,
+                                endColumnIndex: 6
+                            },
+                            cell: {
+                                userEnteredFormat: {
+                                    backgroundColor: { red: 0.8, green: 0.8, blue: 0.8 },
+                                    textFormat: { bold: true },
+                                    horizontalAlignment: "CENTER"
+                                }
+                            },
+                            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+                        }
+                    },
+                    {
+                        repeatCell: {
+                            range: {
+                                sheetId: 1, // Archive sheet
+                                startRowIndex: 0,
+                                endRowIndex: 1,
+                                startColumnIndex: 0,
+                                endColumnIndex: 6
+                            },
+                            cell: {
+                                userEnteredFormat: {
+                                    backgroundColor: { red: 0.8, green: 0.8, blue: 0.8 },
+                                    textFormat: { bold: true },
+                                    horizontalAlignment: "CENTER"
+                                }
+                            },
+                            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+                        }
+                    }
+                ]
+            }
+        });
+
+        console.log('Sheets initialized successfully');
     } catch (error) {
-        console.error('Error initializing sheet:', error);
+        console.error('Error initializing sheets:', error);
         throw error;
     }
 }
