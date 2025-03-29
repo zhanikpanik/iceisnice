@@ -35,7 +35,7 @@ function saveUserData() {
 
 // Create keyboards
 const mainKeyboard = Markup.keyboard([
-    ['❄️ Заказать лёд ❄️'],
+    ['Заказать лёд'],
     ['📍 Изменить адрес', '❌ Отменить заказ']
 ]).resize();
 
@@ -290,7 +290,7 @@ bot.command('start', async (ctx) => {
 });
 
 // Handle main menu actions
-bot.hears('❄️ Заказать лёд ❄️', async (ctx) => {
+bot.hears('Заказать лёд', async (ctx) => {
     await ctx.scene.enter('order');
 });
 
