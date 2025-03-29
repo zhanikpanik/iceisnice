@@ -81,6 +81,15 @@ async function initializeSheet() {
             }
         }
         
+        // Get updated spreadsheet details to get correct sheet IDs
+        const updatedSpreadsheet = await sheets.spreadsheets.get({
+            spreadsheetId: SPREADSHEET_ID
+        });
+        
+        // Get sheet IDs
+        const ordersSheetId = updatedSpreadsheet.data.sheets.find(sheet => sheet.properties.title === 'Заказы').properties.sheetId;
+        const archiveSheetId = updatedSpreadsheet.data.sheets.find(sheet => sheet.properties.title === 'Архив').properties.sheetId;
+        
         // Initialize main sheet for current orders
         const mainHeaders = [['№', 'Заведение', 'Адрес', 'Количество (кг)', 'Время заказа', 'Статус']];
         console.log('Updating main sheet headers...');
@@ -110,7 +119,7 @@ async function initializeSheet() {
                     {
                         repeatCell: {
                             range: {
-                                sheetId: 0, // Main sheet
+                                sheetId: ordersSheetId,
                                 startRowIndex: 0,
                                 endRowIndex: 1,
                                 startColumnIndex: 0,
@@ -129,7 +138,7 @@ async function initializeSheet() {
                     {
                         repeatCell: {
                             range: {
-                                sheetId: 1, // Archive sheet
+                                sheetId: archiveSheetId,
                                 startRowIndex: 0,
                                 endRowIndex: 1,
                                 startColumnIndex: 0,
