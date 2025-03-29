@@ -275,9 +275,20 @@ orderScene.hears('🔙 Назад', async (ctx) => {
 // Register scenes
 const stage = new Scenes.Stage([venueScene, addressScene, orderScene]);
 
+// Initialize middleware
+bot.use(session());
+bot.use(stage.middleware());
+
 // Start command
 bot.command('start', async (ctx) => {
     const userId = ctx.from.id;
+    
+    // Initialize user data if not exists
+    if (!userData[userId]) {
+        userData[userId] = {};
+        saveUserData();
+    }
+    
     if (userData[userId]?.venueName && userData[userId]?.address) {
         await ctx.reply(
             `Добро пожаловать в бот заказа льда!\n\n` +
@@ -306,7 +317,6 @@ bot.hears('Заказать лёд', async (ctx) => {
     console.log('Message text:', ctx.message.text);
     console.log('User ID:', ctx.from.id);
     console.log('User data:', userData[ctx.from.id]);
-    console.log('Session:', ctx.session);
     
     if (!userData[ctx.from.id]?.venueName || !userData[ctx.from.id]?.address) {
         console.log('No venue data found, entering venue scene');
@@ -325,8 +335,6 @@ bot.hears('Заказать лёд', async (ctx) => {
 bot.hears('📍 Изменить адрес', async (ctx) => {
     console.log('Change address button pressed');
     console.log('Message text:', ctx.message.text);
-    console.log('User ID:', ctx.from.id);
-    console.log('Session:', ctx.session);
     await ctx.scene.enter('venue');
 });
 
@@ -334,8 +342,6 @@ bot.hears('📍 Изменить адрес', async (ctx) => {
 bot.hears('❌ Отменить заказ', async (ctx) => {
     console.log('Cancel order button pressed');
     console.log('Message text:', ctx.message.text);
-    console.log('User ID:', ctx.from.id);
-    console.log('Session:', ctx.session);
     const userId = ctx.from.id;
     const activeOrders = await getActiveOrders(userId);
 
@@ -394,10 +400,6 @@ async function startBot() {
     try {
         // Initialize sheet first
         await initializeSheet();
-        
-        // Initialize middleware
-        bot.use(session());
-        bot.use(stage.middleware());
         
         // Launch bot
         await bot.launch();
