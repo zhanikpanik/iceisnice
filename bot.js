@@ -50,14 +50,13 @@ const dateKeyboard = Markup.keyboard([
     ['📅 Выбрать дату', '🔙 Назад']
 ]).resize();
 
-// Scene for collecting venue name
+// Scene for collecting venue details
 const venueScene = new Scenes.BaseScene('venue');
-venueScene.enter((ctx) => {
-    ctx.reply(
-        'Для оформления заказа необходимо указать данные о заведении.\n\n' +
-        'Пожалуйста, введите название заведения:',
-        Markup.removeKeyboard()
-    );
+venueScene.enter(async (ctx) => {
+    console.log('Entering venue scene');
+    await ctx.reply('Введите название заведения:', {
+        reply_markup: { remove_keyboard: true }
+    });
 });
 
 venueScene.on('text', async (ctx) => {
@@ -76,8 +75,11 @@ venueScene.on('text', async (ctx) => {
 
 // Scene for collecting address
 const addressScene = new Scenes.BaseScene('address');
-addressScene.enter((ctx) => {
-    ctx.reply('Пожалуйста, введите адрес доставки:');
+addressScene.enter(async (ctx) => {
+    console.log('Entering address scene');
+    await ctx.reply('Введите адрес заведения:', {
+        reply_markup: { remove_keyboard: true }
+    });
 });
 
 addressScene.on('text', async (ctx) => {
@@ -101,8 +103,12 @@ addressScene.on('text', async (ctx) => {
 // Scene for collecting order details
 const orderScene = new Scenes.BaseScene('order');
 orderScene.enter(async (ctx) => {
+    console.log('Entering order scene');
     const userData = userData[ctx.from.id];
+    console.log('User data in order scene:', userData);
+    
     if (!userData || !userData.venueName || !userData.address) {
+        console.log('No venue data found in order scene');
         await ctx.reply('Пожалуйста, сначала укажите название заведения и адрес.', {
             reply_markup: mainKeyboard.reply_markup
         });
@@ -292,16 +298,18 @@ bot.command('start', async (ctx) => {
 // Debug handler for all text messages
 bot.on('text', (ctx) => {
     console.log('Received text message:', ctx.message.text);
+    console.log('Message type:', ctx.message.text);
+    console.log('User ID:', ctx.from.id);
 });
 
 // Handle main menu actions
 bot.hears('Заказать лёд', async (ctx) => {
     console.log('Order button pressed');
-    const userId = ctx.from.id;
-    console.log('User ID:', userId);
-    console.log('User data:', userData[userId]);
+    console.log('Message text:', ctx.message.text);
+    console.log('User ID:', ctx.from.id);
+    console.log('User data:', userData[ctx.from.id]);
     
-    if (!userData[userId]?.venueName || !userData[userId]?.address) {
+    if (!userData[ctx.from.id]?.venueName || !userData[ctx.from.id]?.address) {
         console.log('No venue data found, entering venue scene');
         await ctx.reply('Пожалуйста, сначала укажите название заведения и адрес.', {
             reply_markup: mainKeyboard.reply_markup
@@ -316,11 +324,15 @@ bot.hears('Заказать лёд', async (ctx) => {
 
 // Handle address change
 bot.hears('📍 Изменить адрес', async (ctx) => {
+    console.log('Change address button pressed');
+    console.log('Message text:', ctx.message.text);
     await ctx.scene.enter('venue');
 });
 
 // Handle cancel order
 bot.hears('❌ Отменить заказ', async (ctx) => {
+    console.log('Cancel order button pressed');
+    console.log('Message text:', ctx.message.text);
     const userId = ctx.from.id;
     const activeOrders = await getActiveOrders(userId);
 
@@ -335,6 +347,28 @@ bot.hears('❌ Отменить заказ', async (ctx) => {
     ]).resize();
 
     await ctx.reply('Выберите заказ для отмены:', keyboard);
+});
+
+// Handle back button in cancel order menu
+bot.hears('🔙 Назад', async (ctx) => {
+    console.log('Back button pressed');
+    console.log('Message text:', ctx.message.text);
+    await ctx.reply('Главное меню:', mainKeyboard);
+});
+
+// Handle order cancellation selection
+bot.hears(/^Отменить заказ №(\d+): (\d+) кг$/, async (ctx) => {
+    console.log('Order cancellation selected');
+    console.log('Message text:', ctx.message.text);
+    const userId = ctx.from.id;
+    const orderIndex = parseInt(ctx.match[1]);
+    
+    const success = await cancelOrder(userId, orderIndex);
+    if (success) {
+        await ctx.reply('Заказ успешно отменен.', mainKeyboard);
+    } else {
+        await ctx.reply('Произошла ошибка при отмене заказа. Пожалуйста, попробуйте позже.', mainKeyboard);
+    }
 });
 
 // Order command
