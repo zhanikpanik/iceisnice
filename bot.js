@@ -275,7 +275,7 @@ orderScene.hears('🔙 Назад', async (ctx) => {
 // Register scenes
 const stage = new Scenes.Stage([venueScene, addressScene, orderScene]);
 
-// Initialize middleware
+// Initialize middleware BEFORE defining handlers
 bot.use(session());
 bot.use(stage.middleware());
 
