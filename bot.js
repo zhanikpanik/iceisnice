@@ -35,7 +35,7 @@ function saveUserData() {
 
 // Create keyboards
 const mainKeyboard = Markup.keyboard([
-    ['Заказать лёд'],
+    ['❄️ Заказать лёд ❄️'],
     ['📍 Изменить адрес', '❌ Отменить заказ']
 ]).resize();
 
@@ -312,36 +312,17 @@ bot.on('text', (ctx) => {
 });
 
 // Handle main menu actions
-bot.hears('Заказать лёд', async (ctx) => {
-    console.log('Order button pressed');
-    console.log('Message text:', ctx.message.text);
-    console.log('User ID:', ctx.from.id);
-    console.log('User data:', userData[ctx.from.id]);
-    
-    if (!userData[ctx.from.id]?.venueName || !userData[ctx.from.id]?.address) {
-        console.log('No venue data found, entering venue scene');
-        await ctx.reply('Пожалуйста, сначала укажите название заведения и адрес.', {
-            reply_markup: mainKeyboard.reply_markup
-        });
-        await ctx.scene.enter('venue');
-        return;
-    }
-    
-    console.log('Entering order scene');
+bot.hears('❄️ Заказать лёд ❄️', async (ctx) => {
     await ctx.scene.enter('order');
 });
 
 // Handle address change
 bot.hears('📍 Изменить адрес', async (ctx) => {
-    console.log('Change address button pressed');
-    console.log('Message text:', ctx.message.text);
     await ctx.scene.enter('venue');
 });
 
 // Handle cancel order
 bot.hears('❌ Отменить заказ', async (ctx) => {
-    console.log('Cancel order button pressed');
-    console.log('Message text:', ctx.message.text);
     const userId = ctx.from.id;
     const activeOrders = await getActiveOrders(userId);
 
