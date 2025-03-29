@@ -36,6 +36,51 @@ async function initializeSheet() {
     try {
         console.log('Starting sheet initialization...');
         
+        // Get spreadsheet details
+        const spreadsheet = await sheets.spreadsheets.get({
+            spreadsheetId: SPREADSHEET_ID
+        });
+        
+        // Check if sheets exist
+        const sheetTitles = spreadsheet.data.sheets.map(sheet => sheet.properties.title);
+        const needsOrdersSheet = !sheetTitles.includes('Заказы');
+        const needsArchiveSheet = !sheetTitles.includes('Архив');
+        
+        // Create sheets if they don't exist
+        if (needsOrdersSheet || needsArchiveSheet) {
+            const requests = [];
+            
+            if (needsOrdersSheet) {
+                requests.push({
+                    addSheet: {
+                        properties: {
+                            title: 'Заказы'
+                        }
+                    }
+                });
+            }
+            
+            if (needsArchiveSheet) {
+                requests.push({
+                    addSheet: {
+                        properties: {
+                            title: 'Архив'
+                        }
+                    }
+                });
+            }
+            
+            if (requests.length > 0) {
+                console.log('Creating new sheets...');
+                await sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: SPREADSHEET_ID,
+                    resource: {
+                        requests: requests
+                    }
+                });
+            }
+        }
+        
         // Initialize main sheet for current orders
         const mainHeaders = [['№', 'Заведение', 'Адрес', 'Количество (кг)', 'Время заказа', 'Статус']];
         console.log('Updating main sheet headers...');
