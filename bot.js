@@ -154,7 +154,15 @@ orderScene.hears(/^\d+ кг$/, async (ctx) => {
         return;
     }
 
-    const pricePerKg = 30;
+    // Get venue data to get the correct price
+    const venueData = await getVenueData(userData[userId].venueId);
+    if (!venueData) {
+        await ctx.reply('Ошибка: заведение не найдено. Пожалуйста, зарегистрируйте заведение заново.');
+        await ctx.scene.enter('venue');
+        return;
+    }
+
+    const pricePerKg = venueData.price;
     const deliveryFee = 100;
     const subtotal = amount * pricePerKg;
     const totalPrice = subtotal + deliveryFee;
