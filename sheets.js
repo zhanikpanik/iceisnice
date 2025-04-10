@@ -40,7 +40,7 @@ async function initializeSheet() {
                 const headers = title === 'Заведения' 
                     ? ['ID', 'Название', 'Адрес', 'Цена за кг']
                     : title === 'Заказы'
-                        ? ['Название заведения', 'Адрес', 'Количество (кг)', 'Сумма с доставкой']
+                        ? ['Название заведения', 'Адрес', 'Количество (кг)', 'Сумма за лёд']
                         : ['ID', 'ID заведения', 'Адрес', 'Количество', 'Дата доставки', 'Дата создания', 'Статус', 'Цена за кг', 'Итого'];
 
                 await sheets.spreadsheets.values.update({
@@ -277,7 +277,7 @@ async function updateTodayOrders() {
             range: 'Заказы!A1:D1',
             valueInputOption: 'RAW',
             resource: {
-                values: [['Название заведения', 'Адрес', 'Количество (кг)', 'Сумма с доставкой']]
+                values: [['Название заведения', 'Адрес', 'Количество (кг)', 'Сумма за лёд']]
             }
         });
 
@@ -290,13 +290,13 @@ async function updateTodayOrders() {
                 const venueData = await getVenueData(order[1]); // Get venue data using venueId
                 const amount = parseInt(order[3]);
                 const pricePerKg = venueData.price;
-                const totalPrice = (amount * pricePerKg) + 100; // Add delivery fee
+                const icePrice = amount * pricePerKg; // Only ice price without delivery
 
                 return [
                     venueData.name,    // Название заведения
                     venueData.address, // Адрес
                     amount,           // Количество
-                    totalPrice        // Сумма с доставкой
+                    icePrice         // Сумма за лёд (без доставки)
                 ];
             }));
 
@@ -313,7 +313,7 @@ async function updateTodayOrders() {
                     venueName: order[0],
                     address: order[1],
                     amount: order[2],
-                    totalPrice: order[3]
+                    icePrice: order[3]
                 });
             });
         }
