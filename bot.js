@@ -638,37 +638,42 @@ bot.catch((err, ctx) => {
     console.error(`Error for ${ctx.updateType}:`, err);
 });
 
-// Start bot
+// Initialize bot with graceful shutdown
 async function startBot() {
     try {
-        await initializeSheet();
-
-        schedule.scheduleJob('0 0 * * *', async () => {
+        // Add shutdown handler before starting
+        const shutdown = async () => {
+            console.log('Shutting down bot...');
             try {
-                await updateTodayOrders();
-                console.log('Daily orders update completed');
+                await bot.stop();
+                await schedule.gracefulShutdown();
+                console.log('Bot stopped successfully');
+                process.exit(0);
             } catch (error) {
-                console.error('Error in daily orders update:', error);
+                console.error('Error during shutdown:', error);
+                process.exit(1);
             }
-        });
+        };
 
+        // Handle shutdown signals
+        process.once('SIGINT', shutdown);
+        process.once('SIGTERM', shutdown);
+
+        // Initialize sheets and start bot
+        await initializeSheet();
         await updateTodayOrders();
         await bot.launch();
-        console.log('Bot started');
+        console.log('Bot started successfully');
     } catch (error) {
+        if (error.response?.error_code === 409) {
+            console.log('Another instance is already running. This is normal during deployment.');
+            // Wait a bit and exit gracefully
+            setTimeout(() => process.exit(0), 1000);
+            return;
+        }
         console.error('Error starting bot:', error);
         process.exit(1);
     }
 }
 
 startBot();
-
-// Graceful shutdown
-process.once('SIGINT', () => {
-    schedule.gracefulShutdown()
-        .then(() => bot.stop('SIGINT'));
-});
-process.once('SIGTERM', () => {
-    schedule.gracefulShutdown()
-        .then(() => bot.stop('SIGTERM'));
-});
