@@ -155,14 +155,18 @@ orderScene.hears(/^\d+ кг$/, async (ctx) => {
     }
 
     const pricePerKg = 30;
-    const totalPrice = amount * pricePerKg;
+    const deliveryFee = 100;
+    const subtotal = amount * pricePerKg;
+    const totalPrice = subtotal + deliveryFee;
 
-    ctx.scene.state = { amount, pricePerKg, totalPrice };
+    ctx.scene.state = { amount, pricePerKg, deliveryFee, subtotal, totalPrice };
 
     await ctx.reply(
         `Выбранное количество: ${amount} кг\n` +
         `Цена: ${pricePerKg} сом/кг\n` +
-        `Итого: ${totalPrice} сом\n\n` +
+        `Подытог: ${subtotal} сом\n` +
+        `Доставка: ${deliveryFee} сом\n` +
+        `Итого с доставкой: ${totalPrice} сом\n\n` +
         'Выберите дату доставки:',
         keyboards.date
     );
@@ -170,9 +174,7 @@ orderScene.hears(/^\d+ кг$/, async (ctx) => {
 
 orderScene.hears('📅 На сегодня', async (ctx) => {
     const userId = ctx.from.id;
-    const amount = ctx.scene.state.amount;
-    const pricePerKg = ctx.scene.state.pricePerKg;
-    const totalPrice = ctx.scene.state.totalPrice;
+    const { amount, pricePerKg, deliveryFee, subtotal, totalPrice } = ctx.scene.state;
     const now = new Date();
     // Convert to UTC+6 (Almaty)
     const almatyTime = new Date(now.getTime() + (6 * 60 * 60 * 1000));
@@ -216,7 +218,9 @@ orderScene.hears('📅 На сегодня', async (ctx) => {
             `Заведение: ${userData[userId].venueName}\n` +
             `Количество: ${amount} кг\n` +
             `Цена: ${pricePerKg} сом/кг\n` +
-            `Итого: ${totalPrice} сом\n` +
+            `Подытог: ${subtotal} сом\n` +
+            `Доставка: ${deliveryFee} сом\n` +
+            `Итого с доставкой: ${totalPrice} сом\n` +
             `Адрес: ${userData[userId].address}\n` +
             `Дата доставки: ${now.toLocaleDateString()}\n\n` +
             `🚚 Водитель выедет в 17:00`,
@@ -231,9 +235,7 @@ orderScene.hears('📅 На сегодня', async (ctx) => {
 
 orderScene.hears('📅 На завтра', async (ctx) => {
     const userId = ctx.from.id;
-    const amount = ctx.scene.state.amount;
-    const pricePerKg = ctx.scene.state.pricePerKg;
-    const totalPrice = ctx.scene.state.totalPrice;
+    const { amount, pricePerKg, deliveryFee, subtotal, totalPrice } = ctx.scene.state;
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const deliveryDate = tomorrow.toISOString().split('T')[0];
@@ -253,7 +255,9 @@ orderScene.hears('📅 На завтра', async (ctx) => {
             `Заведение: ${userData[userId].venueName}\n` +
             `Количество: ${amount} кг\n` +
             `Цена: ${pricePerKg} сом/кг\n` +
-            `Итого: ${totalPrice} сом\n` +
+            `Подытог: ${subtotal} сом\n` +
+            `Доставка: ${deliveryFee} сом\n` +
+            `Итого с доставкой: ${totalPrice} сом\n` +
             `Адрес: ${userData[userId].address}\n` +
             `Дата доставки: ${tomorrow.toLocaleDateString()}`,
             keyboards.main
@@ -300,7 +304,7 @@ orderScene.hears('📅 Выбрать дату', async (ctx) => {
 // Handle specific date buttons
 orderScene.hears(/^📅 (\d{2})\.(\d{2})$/, async (ctx) => {
     const userId = ctx.from.id;
-    const amount = ctx.scene.state.amount;
+    const { amount, pricePerKg, deliveryFee, subtotal, totalPrice } = ctx.scene.state;
     const [, day, month] = ctx.match;
     
     // Get current year
@@ -323,6 +327,10 @@ orderScene.hears(/^📅 (\d{2})\.(\d{2})$/, async (ctx) => {
             `Заказ оформлен!\n\n` +
             `Заведение: ${userData[userId].venueName}\n` +
             `Количество: ${amount} кг\n` +
+            `Цена: ${pricePerKg} сом/кг\n` +
+            `Подытог: ${subtotal} сом\n` +
+            `Доставка: ${deliveryFee} сом\n` +
+            `Итого с доставкой: ${totalPrice} сом\n` +
             `Адрес: ${userData[userId].address}\n` +
             `Дата доставки: ${deliveryDate.toLocaleDateString()}`,
             keyboards.main
