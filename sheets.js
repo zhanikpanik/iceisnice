@@ -39,7 +39,9 @@ async function initializeSheet() {
                 // Add headers to new sheet
                 const headers = title === 'Заведения' 
                     ? ['ID', 'Название', 'Адрес', 'Цена за кг']
-                    : ['ID', 'ID заведения', 'Адрес', 'Количество', 'Дата доставки', 'Дата создания', 'Статус', 'Цена за кг', 'Итого'];
+                    : title === 'Заказы'
+                        ? ['Название заведения', 'Адрес', 'Количество (кг)', 'Сумма с доставкой']
+                        : ['ID', 'ID заведения', 'Адрес', 'Количество', 'Дата доставки', 'Дата создания', 'Статус', 'Цена за кг', 'Итого'];
 
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: process.env.SPREADSHEET_ID,
@@ -265,39 +267,53 @@ async function updateTodayOrders() {
         console.log('Clearing Orders sheet...');
         await sheets.spreadsheets.values.clear({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: 'Заказы!A:I'
+            range: 'Заказы!A:D'
         });
 
         // Add headers back
         console.log('Adding headers to Orders sheet...');
         await sheets.spreadsheets.values.update({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: 'Заказы!A1:I1',
+            range: 'Заказы!A1:D1',
             valueInputOption: 'RAW',
             resource: {
-                values: [['ID', 'ID заведения', 'Адрес', 'Количество', 'Дата доставки', 'Дата создания', 'Статус', 'Цена за кг', 'Итого']]
+                values: [['Название заведения', 'Адрес', 'Количество (кг)', 'Сумма с доставкой']]
             }
         });
 
-        // Add today's orders
+        // Add today's orders in simplified format
         if (todayOrders.length > 0) {
             console.log('Adding today\'s orders to Orders sheet...');
+            
+            // Transform orders to new format
+            const simplifiedOrders = await Promise.all(todayOrders.map(async (order) => {
+                const venueData = await getVenueData(order[1]); // Get venue data using venueId
+                const amount = parseInt(order[3]);
+                const pricePerKg = venueData.price;
+                const totalPrice = (amount * pricePerKg) + 100; // Add delivery fee
+
+                return [
+                    venueData.name,    // Название заведения
+                    venueData.address, // Адрес
+                    amount,           // Количество
+                    totalPrice        // Сумма с доставкой
+                ];
+            }));
+
             await sheets.spreadsheets.values.append({
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'Заказы!A:I',
+                range: 'Заказы!A:D',
                 valueInputOption: 'RAW',
-                resource: { values: todayOrders }
+                resource: { values: simplifiedOrders }
             });
 
             // Log order details
-            todayOrders.forEach((order, index) => {
+            simplifiedOrders.forEach((order, index) => {
                 console.log(`Order ${index + 1}:`, {
-                    userId: order[0],
-                    venueId: order[1],
-                    amount: order[3],
-                    deliveryDate: order[4],
-                    status: order[6],
-                    totalPrice: order[8]
+                    venueName: order[0],
+                    address: order[1],
+                    amount: order[2],
+                    totalPrice: order[3]
                 });
             });
         }
@@ -305,13 +321,7 @@ async function updateTodayOrders() {
         console.log('Daily update completed successfully');
     } catch (error) {
         console.error('Error updating today orders:', error);
-        // Retry logic for critical errors
-        if (error.code === 429 || error.code === 503) {
-            console.log('Retrying update in 1 minute...');
-            setTimeout(updateTodayOrders, 60000);
-        } else {
-            throw error;
-        }
+        throw error;
     }
 }
 
