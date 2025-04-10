@@ -112,24 +112,19 @@ async function addOrder(userId, venueId, address, amount, deliveryDate, createdA
             }
         });
 
-        // If order is for today, add to Orders sheet
+        // If order is for today, add to Orders sheet in simplified format
         const today = new Date().toISOString().split('T')[0];
         if (deliveryDate === today) {
             await sheets.spreadsheets.values.append({
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'Заказы!A:I',
+                range: 'Заказы!A:D',
                 valueInputOption: 'RAW',
                 resource: {
                     values: [[
-                        userId,
-                        venueId,
-                        address,
-                        amount,
-                        deliveryDate,
-                        createdAt,
-                        'Новый',
-                        pricePerKg,
-                        totalPrice
+                        venueData.name,    // Название заведения
+                        venueData.address, // Адрес
+                        amount,            // Количество
+                        totalPrice         // Сумма за лёд
                     ]]
                 }
             });
