@@ -4,8 +4,7 @@
   "description": "Telegram bot for ice orders",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js",
-    "postinstall": "npm ci"
+    "start": "node bot.js"
   },
   "engines": {
     "node": ">=18.0.0"
